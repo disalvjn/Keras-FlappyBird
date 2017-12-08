@@ -7,7 +7,7 @@ import pygame.surfarray as surfarray
 from pygame.locals import *
 from itertools import cycle
 
-FPS = 30
+FPS = 300
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 
@@ -60,11 +60,8 @@ class GameState:
     def frame_step(self, input_actions):
         pygame.event.pump()
 
-        reward = 0.1
+        reward = 0
         terminal = False
-
-        if sum(input_actions) != 1:
-            raise ValueError('Multiple input actions!')
 
         # input_actions[0] == 1: do nothing
         # input_actions[1] == 1: flap the bird
@@ -72,7 +69,7 @@ class GameState:
             if self.playery > -2 * PLAYER_HEIGHT:
                 self.playerVelY = self.playerFlapAcc
                 self.playerFlapped = True
-                #SOUNDS['wing'].play()
+                SOUNDS['wing'].play()
 
         # check for score
         playerMidPos = self.playerx + PLAYER_WIDTH / 2
@@ -80,7 +77,7 @@ class GameState:
             pipeMidPos = pipe['x'] + PIPE_WIDTH / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 self.score += 1
-                #SOUNDS['point'].play()
+                SOUNDS['point'].play()
                 reward = 1
 
         # playerIndex basex change
@@ -119,8 +116,8 @@ class GameState:
                              'index': self.playerIndex},
                             self.upperPipes, self.lowerPipes)
         if isCrash:
-            #SOUNDS['hit'].play()
-            #SOUNDS['die'].play()
+            SOUNDS['hit'].play()
+            SOUNDS['die'].play()
             terminal = True
             self.__init__()
             reward = -1
@@ -134,16 +131,26 @@ class GameState:
 
         SCREEN.blit(IMAGES['base'], (self.basex, BASEY))
         # print score so player overlaps the score
-        # showScore(self.score)
+        showScore(self.score)
         SCREEN.blit(IMAGES['player'][self.playerIndex],
                     (self.playerx, self.playery))
 
-        image_data = pygame.surfarray.array3d(pygame.display.get_surface())
+        pipe = filter(lambda p:self.playerx<p['x']+PIPE_WIDTH, self.upperPipes)
+        pipe = min(pipe, key=lambda p:p['x'])
+        pipeX = pipe['x'] + PIPE_WIDTH
+        pipeY = pipe['y'] + PIPE_HEIGHT + PIPEGAPSIZE/2
+        #import pdb;pdb.set_trace()
+        #pygame.draw.line(SCREEN, (255,0,0), (pipeX-10, pipeY-10), (pipeX+10, pipeY+10))
+        #pygame.draw.line(SCREEN, (255,0,0), (pipeX+10, pipeY-10), (pipeX-10, pipeY+10))
+        pygame.draw.line(SCREEN, (255,0,0), (self.playerx, self.playery), (pipeX, pipeY))
         pygame.display.update()
-        #print ("FPS" , FPSCLOCK.get_fps())
-	FPSCLOCK.tick(FPS)
+
+        FPSCLOCK.tick(FPS)
+
+        X = self.playerx - pipeX
+        Y = self.playery - pipeY
         #print self.upperPipes[0]['y'] + PIPE_HEIGHT - int(BASEY * 0.2)
-        return image_data, reward, terminal
+        return np.array([[X,Y]]), reward, terminal
 
 def getRandomPipe():
     """returns a randomly generated pipe"""
